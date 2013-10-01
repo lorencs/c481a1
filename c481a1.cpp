@@ -1,14 +1,6 @@
-//============================================================================
-// Name        : c481a1.cpp
-// Author      : 
-// Version     :
-// Copyright   : Your copyright notice
-// Description : Hello World in C, Ansi-style
-//============================================================================
-
-#include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
+#include <time.h>
 #include <pthread.h>
 
 using namespace std;
@@ -23,17 +15,10 @@ bool isInteger(const string & s){
    return (*p == 0) ;
 }
 
-//test thread function
-void *testFunction(void* ptr){
-    cout << "Threading\n";
-}
-
-int main(void) {
-	int num_threads = 0;
-	string input = "";
-
-	//get input for number of threads
-	cout << "Enter the number of threads:" << endl;
+//get integer input from user
+int getIntegerInput(string prompt){
+	string input;
+	cout << prompt << endl;
 	getline(cin, input);
 
 	//repeat until integer is inputted
@@ -42,15 +27,46 @@ int main(void) {
 		getline(cin, input);
 	}
 
-	// set number of threads
-	num_threads = atoi(input.c_str());
+	return atoi(input.c_str());
+}
+
+//test thread function
+void *testFunction(void* ptr){
+    int x = 2;
+
+    for(int i = 0; i < 1000000000; i++){
+    	x = x * 3;
+    }
+
+    cout << x << endl;
+}
+
+int main(void) {
+	int num_threads = 0;		//number of threads to generate
+	int n = 0;					//size of square matrix (n x n)
+
+	//get input for number of threads
+	num_threads = getIntegerInput("Enter the number of threads:");
+	n = getIntegerInput("Enter size of the matrix:");
+
+	//intialize thread pointer array
 	pthread_t ThreadId[num_threads];
+
+	//START TEST TIEMR
+	int startTime = time(0);
 
 	for(int i = 0; i < num_threads; i++ ){
 		pthread_create( &( ThreadId[ i ] ), NULL, testFunction, NULL );
+		//pthread_join(ThreadId[i], NULL);
+	}
+
+	for(int i = 0; i < num_threads; i++ ){
 		pthread_join(ThreadId[i], NULL);
 	}
 
+	int endTime = time(0);
+
+	cout << "total time " << (endTime - startTime) << endl;
 
 	return EXIT_SUCCESS;
 }

@@ -1,8 +1,8 @@
-CXXFLAGS =	-O2 -g -fmessage-length=0
+CXXFLAGS =	-g -fmessage-length=0
 
 OBJS =		c481a1.o
 
-LIBS = 
+LIBS = 		-pthread
 
 TARGET =	c481a1
 
