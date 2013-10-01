@@ -24,7 +24,7 @@ bool isInteger(const string & s){
 }
 
 //test thread function
-void *testFunction(void*){
+void *testFunction(void* ptr){
     cout << "Threading\n";
 }
 
@@ -32,7 +32,7 @@ int main(void) {
 	int num_threads = 0;
 	string input = "";
 
-	//get input for nubmer of threads
+	//get input for number of threads
 	cout << "Enter the number of threads:" << endl;
 	getline(cin, input);
 
@@ -46,8 +46,9 @@ int main(void) {
 	num_threads = atoi(input.c_str());
 	pthread_t ThreadId[num_threads];
 
-	for(int i = 1; i < num_threads; i++ ){
-		pthread_create( &( ThreadId[ i ] ), NULL, testFunction, (void*)&( TCB[ i ] ) );
+	for(int i = 0; i < num_threads; i++ ){
+		pthread_create( &( ThreadId[ i ] ), NULL, testFunction, NULL );
+		pthread_join(ThreadId[i], NULL);
 	}
 
 
