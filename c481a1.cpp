@@ -3,6 +3,8 @@
 #include <time.h>
 #include <pthread.h>
 #include <cmath>
+#include <fstream>
+#include <sstream>
 
 using namespace std;
 
@@ -17,6 +19,8 @@ bool isInteger(const string & s);
 int getIntegerInput(string prompt);
 void generateMatrices(int n);
 void *threadMain(void *arg);
+double getAvg(int array[], int size);
+int runCalculation(int n, int num_threads);
 
 //global matrices
 int **matrixA;
@@ -24,125 +28,64 @@ int **matrixB;
 int **matrixC;	// result matrix
 
 int main(void) {
-	srandom(2);
-	int num_threads = 0;		//number of threads to generate
-	int n = 0;					//size of square matrix (n x n)
-
-	//get input for number of threads
-	num_threads = getIntegerInput("Enter the number of threads:");
-	n = getIntegerInput("Enter size of the matrix:");
-
-	//initialize thread pointer array
-	pthread_t ThreadId[num_threads];
-
-	generateMatrices(n);
-
-	/*n = 3;
-
-	matrixA[0][0] = 1;
-	matrixA[0][1] = 2;
-	matrixA[0][2] = 3;
-	matrixA[1][0] = 4;
-	matrixA[1][1] = 5;
-	matrixA[1][2] = 6;
-	matrixA[2][0] = 7;
-	matrixA[2][1] = 8;
-	matrixA[2][2] = 9;
-
-	matrixB[0][0] = 1;
-	matrixB[0][1] = 2;
-	matrixB[0][2] = 3;
-	matrixB[1][0] = 4;
-	matrixB[1][1] = 5;
-	matrixB[1][2] = 6;
-	matrixB[2][0] = 7;
-	matrixB[2][1] = 8;
-	matrixB[2][2] = 9;*/
-
-	//split up the matrix indices (where index i is row floor(i/n), column n - floor(i/n) )
-	int calcs = n*n;							//number of calcs that need to be performed
-	int countMost = floor((calcs)/num_threads);	//number of calcs to be performed by num_threads - 1 threads
-	int countLast = calcs - countMost*(num_threads - 1);	//number of calcs to be performed by the last thread
-
-	cout << "countMost: " << countMost << "| countLast: " << countLast << endl;
-
-	//START TEST TIMER
+	//timer for entire experiment
 	int startTime = time(0);
 
-	threadParams tps[num_threads];	//array of thread params for each thread
-
-	int currI = 0;	// keep track of which index we're assigning to the thread to start on
-	for(int i = 0; i < num_threads; i++ ){
-		tps[i].start = currI;
-		tps[i].count = (i < num_threads - 1) ? countMost : countLast;
-		tps[i].n = n;
-		tps[i].i = i;
-
-		//if not on last thread, increment start by countMost
-		if (i < num_threads - 1){
-			currI += countMost;
+	int sizes[] = {1024, 1200, 1400, 1600, 1800, 2048, 2200};			//array of matrix sizes to perform calculations on
+	
+	//for each size
+	for(int a = 0; a < 7; a++){
+		int n = sizes[a];
+		
+		cout << "-Size: " << n << endl;
+		
+		//compile filename
+		ostringstream convert;
+		convert << n;
+		string filename = convert.str();
+		filename += ".txt";
+		
+		//new file to write to
+		ofstream file;
+		file.open(filename.c_str());
+		
+		// seed the RNG and regenerate matrices for every size 
+		srandom(time(0));		
+		generateMatrices(sizes[a]);
+		
+		//perform 5 trials per thread count per matrix size
+		int trials[5];
+		
+		//perform matrix mult using 5 different numbers of threads
+		int threads[] = {1,2,3,4,8};		
+		for(int t = 0; t < 5; t++){
+			int num_threads = threads[t];
+			cout << "--Threads: " << num_threads << endl;
+			for(int b = 0; b < 5; b++){
+				cout << "---trial: " << b << "| result...";
+				int result = runCalculation(n, num_threads);
+				cout << result << endl;
+				trials[b] = result;
+			}		
+			double avg = getAvg(trials,5);
+			cout << "---avg: " << avg << endl;
+			file << num_threads << "," << avg << endl;
 		}
 
-		pthread_create( &( ThreadId[ i ] ), NULL, threadMain, &tps[i]);
+		file.close();		
+		
+		//cleanup
+		delete[] matrixA;
+		delete[] matrixB;
+		delete[] matrixC;
 	}
-
-	for(int i = 0; i < num_threads; i++ ){
-		pthread_join(ThreadId[i], NULL);
-	}
-
-	//END TEST TIMER
+	
 	int endTime = time(0);
-
-	/*cout << endl << "result matrix C:" << endl;
-		for(int i = 0; i < n; i++){
-			cout << "[";
-			for(int j = 0; j < n; j++){
-				int val = matrixC[i][j];
-				string space;
-				//space = (val < 1000) ? " " : ""; cout << space;
-				space = (val < 100) ? " " : ""; cout << space;
-				space = (val < 10) ? " " : ""; cout << space;
-				cout << " " << val;
-			}
-			cout << " ]" << endl;
-		}
-	*/
-	cout << "total time " << (endTime - startTime) << endl;
-
-	//cleanup
-	delete[] matrixA;
-	delete[] matrixB;
-	delete[] matrixC;
-
+	cout << endl << "Total time: " << (endTime - startTime) << endl;
 	return EXIT_SUCCESS;
 }
 
-
-//return true if string is integer
-bool isInteger(const string & s){
-   if(s.empty() || ((!isdigit(s[0])) && (s[0] != '-') && (s[0] != '+'))) return false ;
-
-   char * p ;
-   strtol(s.c_str(), &p, 10) ;
-
-   return (*p == 0) ;
-}
-
-//get integer input from user
-int getIntegerInput(string prompt){
-	string input;
-	cout << prompt << endl;
-	getline(cin, input);
-
-	//repeat until integer is inputted
-	while (!isInteger(input)){
-		cout << "Please enter an integer:" << endl;
-		getline(cin, input);
-	}
-
-	return atoi(input.c_str());
-}
-
+//generate 2 random dense matrices with values from 0 to 999
 void generateMatrices(int n){
 	matrixA = new int*[n];
 	matrixB = new int*[n];
@@ -158,35 +101,76 @@ void generateMatrices(int n){
 			matrixB[i][j] = random() % 1000;
 		}
 	}
+}
 
-	//print matrices
-	/*cout << "multiplying matrix A:" << endl;
-	for(int i = 0; i < n; i++){
-		cout << "[";
-		for(int j = 0; j < n; j++){
-			int val = matrixA[i][j];
-			string space;
-			//space = (val < 1000) ? " " : ""; cout << space;
-			space = (val < 100) ? " " : ""; cout << space;
-			space = (val < 10) ? " " : ""; cout << space;
-			cout << " " << val;
+//get average of ints in array
+double getAvg(int array[], int size){
+	double sum = 0.0;
+	for(int i = 0 ; i < size; i++){
+		sum += array[i];
+	}
+	
+	return (double) sum/size;
+}
+
+//perform matrix multiplication of size n x n using num_threads threads
+int runCalculation(int n, int num_threads){
+	//get input for number of threads
+	/*num_threads = getIntegerInput("Enter the number of threads:");
+	n = getIntegerInput("Enter size of the matrix:");*/
+	int startTime = 0;
+	
+	//if more than 1 thread, perform parallel mat mult
+	if (num_threads > 1){
+	
+		//initialize thread pointer array
+		pthread_t ThreadId[num_threads];
+		
+		//split up the matrix indices (where index i is row floor(i/n), column n - floor(i/n) )
+		int calcs = n*n;							//number of calcs that need to be performed
+		int countMost = floor((calcs)/num_threads);	//number of calcs to be performed by num_threads - 1 threads
+		int countLast = calcs - countMost*(num_threads - 1);	//number of calcs to be performed by the last thread
+
+		//START TIMER
+		startTime = time(0);
+
+		threadParams tps[num_threads];	//array of thread params for each thread
+
+		int currI = 0;	// keep track of which index we're assigning to the thread to start on
+		for(int i = 0; i < num_threads; i++ ){
+			tps[i].start = currI;
+			tps[i].count = (i < num_threads - 1) ? countMost : countLast;
+			tps[i].n = n;
+			tps[i].i = i;
+
+			//if not on last thread, increment start by countMost
+			if (i < num_threads - 1){
+				currI += countMost;
+			}
+
+			pthread_create( &( ThreadId[ i ] ), NULL, threadMain, &tps[i]);
 		}
-		cout << " ]" << endl;
+
+		for(int i = 0; i < num_threads; i++ ){
+			pthread_join(ThreadId[i], NULL);
+		}
+		
+	//else if only 1 thread, perform linear matrix mult
+	} else {
+		startTime = time(0);
+		for (int i = 0; i < n; ++i) { 
+			for (int j = 0; j < n; ++j) { 
+				for (int k = 0; k < n; ++k) {
+					matrixC[i][j] += matrixC[i][k] * matrixC[k][j]; 
+				}
+			} 
+		}
 	}
 
-	cout << endl << "by matrix B:" << endl;
-	for(int i = 0; i < n; i++){
-		cout << "[";
-		for(int j = 0; j < n; j++){
-			int val = matrixB[i][j];
-			string space;
-			//space = (val < 1000) ? " " : ""; cout << space;
-			space = (val < 100) ? " " : ""; cout << space;
-			space = (val < 10) ? " " : ""; cout << space;
-			cout << " " << val;
-		}
-		cout << " ]" << endl;
-	}*/
+	//END TEST TIMER
+	int endTime = time(0);
+
+	return (endTime - startTime);
 }
 
 //test thread function
@@ -206,5 +190,5 @@ void *threadMain(void* arg){
 
 		matrixC[row][col] = val;
 	}
-
 }
+
