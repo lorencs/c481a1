@@ -193,9 +193,10 @@ void generateMatrices(int n){
 void *threadMain(void* arg){
 	threadParams* args = (threadParams*) arg;
 
-	for (int i = args->start; i < args->start+args->count; i++){
-		int row = (int)floor((double)(i/args->n));
-		int col = (i % args->n);
+	for (int i = args->start; i < args->start + args->count; i++){
+		int row = floor(i/args->n);
+		int col = i - (args->n * row);
+		//int col = (i % args->n);
 
 		int val = 0;
 

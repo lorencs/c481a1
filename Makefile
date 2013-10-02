@@ -1,4 +1,4 @@
-CXXFLAGS =	-g -fmessage-length=0
+CXXFLAGS =	-O2 -g -fmessage-length=0
 
 OBJS =		c481a1.o
 
